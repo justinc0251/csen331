@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <time.h>
 #include <signal.h>
+#include <sys/time.h>
 #include "frame.h"
 
 #define SERVER_IP "127.0.0.1"  // Change this to the server's IP if needed
