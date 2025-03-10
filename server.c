@@ -22,22 +22,6 @@ server.c
 const uint8_t CLIENT_MAC[6] = {0x12, 0x45, 0xCC, 0xDD, 0xEE, 0x88};
 const uint8_t AP_MAC[6] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xDD};
 
-// Validates frame identifiers and FCS
-int validate_frame(udp_payload *payload) {
-    if (payload->start_frame_id != START_FRAME_ID || payload->end_frame_id != END_FRAME_ID) {
-        printf("Invalid frame identifiers\n");
-        return 0;
-    }
-    
-    uint32_t calculated_fcs = getCheckSumValue(&payload->frame, sizeof(ieee80211_frame), 0, 4);
-    if (calculated_fcs != payload->frame.fcs) {
-        printf("FCS Error\n");
-        return 0;
-    }
-    
-    return 1;
-}
-
 // Creates Association Response frame
 size_t create_association_response(uint8_t *buffer) {
     ieee80211_frame frame;
@@ -171,8 +155,7 @@ void process_frame(int socket_fd, uint8_t *recv_buffer, size_t recv_size,
     
     uint32_t calculated_fcs = getCheckSumValue(&payload->frame, sizeof(ieee80211_frame), 0, 4);
     if (calculated_fcs != payload->frame.fcs) {
-        printf("FCS ERROR: Received=0x%08X, Calculated=0x%08X\n", 
-               payload->frame.fcs, calculated_fcs);
+        printf("FCS (Frame Check Sequence) Error\n");
         return;  // Don't respond to FCS errors
     }
     

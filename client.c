@@ -135,7 +135,7 @@ int send_frame_and_wait(uint8_t *frame_buffer, size_t frame_size,
     }
 
     if (retries >= MAX_RETRIES) {
-        printf("Access Point does not respond.\n");
+        printf("No ACK received from AP.\n");
         return 0;
     }
     

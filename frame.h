@@ -81,10 +81,4 @@ typedef struct __attribute__((packed)) {
 // FCS calculation function
 uint32_t getCheckSumValue(void *buffer, size_t size, size_t start, size_t len);
 
-// Frame handling functions
-void init_frame_control(frame_control_t *fc, uint8_t type, uint8_t subtype);
-void set_address(uint8_t *addr, const char *mac_str);
-void print_mac_address(const uint8_t *addr);
-void print_frame_info(const ieee80211_frame *frame);
-
 #endif
