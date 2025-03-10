@@ -4,8 +4,8 @@
 #include <stdint.h>
 
 // Frame identifiers - updated to 32-bit values as used in client.c
-#define START_FRAME_ID 0xABCDEF12
-#define END_FRAME_ID 0x12EFCDAB
+#define START_FRAME_ID 0xFFFF
+#define END_FRAME_ID 0xFFFF
 
 // Protocol version
 #define PROTOCOL_VERSION 0
@@ -69,9 +69,9 @@ typedef struct __attribute__((packed)) {
 
 // Structure for UDP payload containing IEEE 802.11 frame - renamed to match client.c
 typedef struct __attribute__((packed)) {
-    uint32_t start_frame_id;         // 4 bytes: Start of frame identifier
+    uint16_t start_frame_id;         // 2 bytes: Start of frame identifier
     ieee80211_frame frame;           // Variable length IEEE 802.11 frame
-    uint32_t end_frame_id;           // 4 bytes: End of frame identifier
+    uint16_t end_frame_id;           // 2 bytes: End of frame identifier
 } udp_payload;
 
 // Function to calculate checksum for FCS - required by client.c

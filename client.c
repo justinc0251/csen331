@@ -9,6 +9,7 @@
 #include <time.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <errno.h>
 #include "frame.h"
 
 #define SERVER_IP "127.0.0.1"  // Change this to the server's IP if needed
@@ -74,6 +75,7 @@ int send_frame_and_wait(uint8_t *frame_buffer, size_t frame_size,
                         const char *frame_name) {
     int retries = 0;
     response_received = 0;
+    *response_size = 0;
 
     while (retries < MAX_RETRIES && !response_received) {
         printf("Sending %s (Attempt %d)\n", frame_name, retries + 1);
@@ -90,23 +92,52 @@ int send_frame_and_wait(uint8_t *frame_buffer, size_t frame_size,
         setup_timer(ACK_TIMEOUT);
         
         // Wait for response
-        *response_size = recvfrom(client_socket, response_buffer, MAX_BUFFER_SIZE, 0, 
+        ssize_t recv_size = recvfrom(client_socket, response_buffer, MAX_BUFFER_SIZE, 0, 
                                (struct sockaddr *)&server_addr, &server_addr_len);
         
-        if (*response_size > 0) {
+        if (recv_size > 0) {
             // Response received
+            udp_payload *payload = (udp_payload *)response_buffer;
+            
+            // Validate frame identifiers
+            if (payload->start_frame_id != START_FRAME_ID || payload->end_frame_id != END_FRAME_ID) {
+                printf("Invalid frame identifiers in response\n");
+                continue;  // Treat as no response and retry
+            }
+            
+            // Validate FCS
+            uint32_t calculated_fcs = getCheckSumValue(&payload->frame, sizeof(ieee80211_frame), 0, 4);
+            if (calculated_fcs != payload->frame.fcs) {
+                printf("FCS Error in response\n");
+                continue;  // Treat as no response and retry
+            }
+            
+            // Valid response
+            *response_size = recv_size;
             response_received = 1;
             waiting_for_response = 0;
             cancel_timer();
-            printf("Response received for %s\n", frame_name);
+            printf("Valid response received for %s\n", frame_name);
             return 1;  // Success
+        } else {
+            // Check if it's a timeout or other error
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                printf("Socket timeout waiting for response to %s\n", frame_name);
+                retries++;
+            } else {
+                perror("recvfrom failed with error");
+                retries++;
+            }
         }
         
-        // Check if timed out
+        // Check if timer expired
         if (!waiting_for_response && !response_received) {
-            printf("Timeout waiting for response to %s\n", frame_name);
+            printf("Timer expired waiting for response to %s\n", frame_name);
             retries++;
         }
+        
+        // Cancel timer before next attempt
+        cancel_timer();
     }
 
     if (retries >= MAX_RETRIES) {
@@ -316,13 +347,13 @@ size_t create_data_frame(uint8_t *buffer, uint16_t duration_id, int fragment_num
 }
 
 // Create data frame with incorrect FCS
-size_t create_data_frame_bad_fcs(uint8_t *buffer) {
+size_t create_data_frame_bad_fcs(uint8_t *buffer, uint16_t duration_id, int fragment_number, int more_fragments) {
     // Create a normal data frame first
-    size_t size = create_data_frame(buffer, 2, 0, 0);
+    size_t size = create_data_frame(buffer, duration_id, fragment_number, more_fragments);
     
     // Modify the FCS to make it incorrect
     udp_payload *payload = (udp_payload *)buffer;
-    payload->frame.fcs = 0xDEADBEEF; // Deliberately wrong FCS
+    payload->frame.fcs = 0x00000000; // Deliberately wrong FCS
     
     return size;
 }
@@ -364,7 +395,10 @@ int main() {
     struct timeval tv;
     tv.tv_sec = 0;
     tv.tv_usec = 100000;  // 100ms
-    setsockopt(client_socket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    if (setsockopt(client_socket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+        perror("setsockopt failed");
+        exit(EXIT_FAILURE);
+    }
 
     printf("UDP Client started. Connecting to AP at %s:%d\n", SERVER_IP, SERVER_PORT);
 
@@ -400,9 +434,9 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    // Step.5: Send Frame with Bad FCS
+    // Step 5: Send Frame with Bad FCS
     printf("\n--- Step 5: Frame with Bad FCS ---\n");
-    frame_size = create_data_frame_bad_fcs(send_buffer);
+    frame_size = create_data_frame_bad_fcs(send_buffer, 2, 0, 0);
     send_frame_and_wait(send_buffer, frame_size, recv_buffer, &response_size, "Frame with Bad FCS");
     
     // Step 6: Multiple frame procedure - First send RTS with higher duration
@@ -427,7 +461,7 @@ int main() {
         }
     }
     
-    // Step 7: Send 5 more frames with one correct and four with errors
+    // Step 7: Send 1 correct frame and 4 frames with errors
     printf("\n--- Step 7: Multiple Frames with Errors ---\n");
     
     // First frame is correct
@@ -440,22 +474,21 @@ int main() {
     
     // Four frames with errors
     for (int i = 1; i < 5; i++) {
-        int more_fragments = (i < 4) ? 1 : 0;
+        int more_fragments = (i < 4) ? 1 : 0;  // Last frame has no more fragments
         
         // Create frame with bad FCS
-        frame_size = create_data_frame(send_buffer, 2, i, more_fragments);
-        udp_payload *payload = (udp_payload *)send_buffer;
-        payload->frame.fcs = 0xDEADBEEF;  // Corrupt the FCS
+        frame_size = create_data_frame_bad_fcs(send_buffer, 2, i, more_fragments);
         
+        // Send frame and expect no response due to bad FCS
         if (!send_frame_and_wait(send_buffer, frame_size, recv_buffer, &response_size, 
-                               "Data Frame with Error")) {
+                               "Data Frame with Bad FCS")) {
             printf("No ACK Received for Frame No.%d\n", i+1);
         }
     }
-
+    
     // Close socket
     close(client_socket);
-    printf("Client terminated.\n");
+    printf("\nClient terminated.\n");
     
     return 0;
 }

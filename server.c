@@ -243,10 +243,10 @@ void process_frame(int socket_fd, uint8_t *recv_buffer, size_t recv_size,
     uint8_t frame_type = payload->frame.frame_control.type;
     uint8_t frame_subtype = payload->frame.frame_control.subtype;
     
-    // Validate FCS
     uint32_t calculated_fcs = getCheckSumValue(&payload->frame, sizeof(ieee80211_frame), 0, 4);
     if (calculated_fcs != payload->frame.fcs) {
-        printf("FCS (Frame Check Sequence) Error\n");
+        printf("FCS ERROR: Received=0x%08X, Calculated=0x%08X\n", 
+               payload->frame.fcs, calculated_fcs);
         return;  // Don't respond to frames with FCS errors
     }
     

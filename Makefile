@@ -1,43 +1,19 @@
-# Makefile for IEEE 802.11 Frame Exchange Assignment
+all: server client
 
-# Compiler settings
-CC = gcc
-CFLAGS = -Wall -Wextra -g
-LDFLAGS = -lm
+server: frame.o server.c
+	gcc frame.o server.c -o server
 
-# Source files
-CLIENT_SRC = client.c
-SERVER_SRC = server.c
-COMMON_SRC = 
+client: frame.o client.c
+	gcc frame.o client.c -o client
 
-# Header files
-HEADERS = frame.h
+frame.o: frame.c frame.h
+	gcc -c frame.c -o frame.o
 
-# Output executables
-CLIENT = client
-SERVER = server
-
-# Default target
-all: $(CLIENT) $(SERVER)
-
-# Client target
-$(CLIENT): $(CLIENT_SRC) $(COMMON_SRC) $(HEADERS)
-	$(CC) $(CFLAGS) -o $@ $(CLIENT_SRC) $(COMMON_SRC) $(LDFLAGS)
-
-# Server target
-$(SERVER): $(SERVER_SRC) $(COMMON_SRC) $(HEADERS)
-	$(CC) $(CFLAGS) -o $@ $(SERVER_SRC) $(COMMON_SRC) $(LDFLAGS)
-
-# Clean target
 clean:
-	rm -f $(CLIENT) $(SERVER) *.o
+	rm -f *.o server client
 
-# Run targets for testing
-run-server:
-	./$(SERVER)
+run-server: server
+	./server
 
-run-client:
-	./$(CLIENT)
-
-# Phony targets
-.PHONY: all clean run-server run-client
+run-client: client
+	./client
