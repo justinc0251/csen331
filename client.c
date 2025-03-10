@@ -395,8 +395,6 @@ int main() {
         }
     }
     
-    close(client_socket);
-    printf("\nClient terminated.\n");
-    
+    close(client_socket);    
     return 0;
 }
