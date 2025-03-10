@@ -1,3 +1,10 @@
+/*
+Justin Chung
+COEN 331 Winter 2025: Programming Assignment
+3/9/2025
+frame.c
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
