@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-// Frame identifiers - updated to 32-bit values as used in client.c
+// Frame identifiers
 #define START_FRAME_ID 0xFFFF
 #define END_FRAME_ID 0xFFFF
 
@@ -33,17 +33,14 @@
 #define MAX_PAYLOAD_SIZE 1024
 #define MAX_FRAME_SIZE 2346
 
-// MAC Address length in bytes
 #define MAC_ADDR_LEN 6
 
-// Structure for Frame Control field (2 bytes) - renamed to match client.c
+// IEEE 802.11 Frame Control field (2 bytes)
 typedef struct __attribute__((packed)) {
-    // First byte
     uint8_t protocol_version : 2;
     uint8_t type : 2;
     uint8_t subtype : 4;
     
-    // Second byte
     uint8_t to_ds : 1;
     uint8_t from_ds : 1;
     uint8_t more_frag : 1;
@@ -54,33 +51,33 @@ typedef struct __attribute__((packed)) {
     uint8_t order : 1;
 } frame_control_t;
 
-// Structure for IEEE 802.11 frame - consolidated to match client.c usage
+// IEEE 802.11 frame structure
 typedef struct __attribute__((packed)) {
-    frame_control_t frame_control;    // 2 bytes
-    uint16_t duration_id;             // 2 bytes
-    uint8_t addr1[MAC_ADDR_LEN];      // 6 bytes: Destination address
-    uint8_t addr2[MAC_ADDR_LEN];      // 6 bytes: Source address
-    uint8_t addr3[MAC_ADDR_LEN];      // 6 bytes: BSSID
-    uint16_t seq_ctrl;                // 2 bytes: Sequence control (combined field)
-    uint8_t addr4[MAC_ADDR_LEN];      // 6 bytes: Optional fourth address
-    uint8_t payload[MAX_PAYLOAD_SIZE]; // Variable length payload
-    uint32_t fcs;                     // 4 bytes: Frame Check Sequence
+    frame_control_t frame_control;
+    uint16_t duration_id;
+    uint8_t addr1[MAC_ADDR_LEN];      // Destination address
+    uint8_t addr2[MAC_ADDR_LEN];      // Source address
+    uint8_t addr3[MAC_ADDR_LEN];      // BSSID
+    uint16_t seq_ctrl;                // Sequence control
+    uint8_t addr4[MAC_ADDR_LEN];      // Fourth address (optional)
+    uint8_t payload[MAX_PAYLOAD_SIZE];
+    uint32_t fcs;                     // Frame Check Sequence
 } ieee80211_frame;
 
-// Structure for UDP payload containing IEEE 802.11 frame - renamed to match client.c
+// UDP payload wrapper for IEEE 802.11 frame
 typedef struct __attribute__((packed)) {
-    uint16_t start_frame_id;         // 2 bytes: Start of frame identifier
-    ieee80211_frame frame;           // Variable length IEEE 802.11 frame
-    uint16_t end_frame_id;           // 2 bytes: End of frame identifier
+    uint16_t start_frame_id;
+    ieee80211_frame frame;
+    uint16_t end_frame_id;
 } udp_payload;
 
-// Function to calculate checksum for FCS - required by client.c
+// FCS calculation function
 uint32_t getCheckSumValue(void *buffer, size_t size, size_t start, size_t len);
 
-// Function declarations for frame operations
+// Frame handling functions
 void init_frame_control(frame_control_t *fc, uint8_t type, uint8_t subtype);
 void set_address(uint8_t *addr, const char *mac_str);
 void print_mac_address(const uint8_t *addr);
 void print_frame_info(const ieee80211_frame *frame);
 
-#endif /* FRAME_H */
+#endif
