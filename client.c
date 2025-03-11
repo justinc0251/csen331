@@ -117,21 +117,22 @@ int send_frame_and_wait(uint8_t *frame_buffer, size_t frame_size,
             printf("Valid response received for %s\n", frame_name);
             return 1;
         } else {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            // Handle recvfrom errors, including timer interrupts
+            if (errno == EINTR) {
+                // This is expected when our timer expires, don't print an error
+                printf("Timer expired waiting for response to %s\n", frame_name);
+            } else if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 printf("Socket timeout waiting for response to %s\n", frame_name);
-                retries++;
             } else {
                 perror("recvfrom failed with error");
-                retries++;
             }
         }
         
-        if (!waiting_for_response && !response_received) {
-            printf("Timer expired waiting for response to %s\n", frame_name);
-            retries++;
-        }
-        
+        // Only cancel the timer if it's still active
         cancel_timer();
+        
+        // Always increment the retry counter once per loop iteration
+        retries++;
     }
 
     if (retries >= MAX_RETRIES) {
@@ -311,8 +312,8 @@ int main() {
 
     // Set socket timeout
     struct timeval tv;
-    tv.tv_sec = 0;
-    tv.tv_usec = 100000;  // 100ms
+    tv.tv_sec = 4;
+    tv.tv_usec = 0;  // 100ms
     if (setsockopt(client_socket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
         perror("setsockopt failed");
         exit(EXIT_FAILURE);
